@@ -1,5 +1,5 @@
 """
-URL configuration for Backend project.
+URL configuration for backend project.
 
 The `urlpatterns` list routes URLs to views. For more information please see:
     https://docs.djangoproject.com/en/6.0/topics/http/urls/
@@ -16,7 +16,13 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+
+from core.views import RegisterAPIView
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path("admin/", admin.site.urls),
+    path("api/auth/register/", RegisterAPIView.as_view(), name="register"),
+    path("api/auth/login/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
+    path("api/auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
 ]
