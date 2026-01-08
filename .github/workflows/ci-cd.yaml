@@ -1,9 +1,9 @@
 name: CI/CD Pipeline
 
 on:
-  push: 
+  push:   
     branches: [ main, develop ]
-  pull_request:
+  pull_request:   
     branches: [ main, develop ]
 
 env:
@@ -11,41 +11,44 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  ci: 
+  ci:  
     name: Continuous Integration
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
 
-    steps:
+    steps: 
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name:  Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
 
-      - name: Install uv
-        run: |
-          curl -LsSf https://astral. sh/uv/install.sh | sh
-          echo "$HOME/. cargo/bin" >> $GITHUB_PATH
+      - name: Setup Node. js
+        uses: actions/setup-node@v4
+        with:  
+          node-version: '20'
+          cache: 'pnpm'
 
-      - name: Install dependencies
-        run: |
-          uv pip install --system -r pyproject.toml
+      - name:  Install dependencies
+        run: pnpm install --frozen-lockfile
 
-      - name: Run Django tests
-        run: |
-          python manage.py test || echo "No tests found or tests failed"
+      - name: Run linting
+        run: pnpm run lint
         continue-on-error: true
-        env:
-          DJANGO_SETTINGS_MODULE: backend.settings
 
-      - name: Run Django check
+      - name: Build utilities
+        run: pnpm run build:utils
+
+      - name:  Run tests in packages
         run: |
-          python manage.py check
+          # Run tests for packages that have test scripts
+          pnpm -F @networking/auth run test || echo "No tests or tests failed in auth package"
+        continue-on-error: true
+
+      - name: Build Next.js application
+        run: pnpm run build
 
       - name: Log in to GitHub Container Registry
         if: github.event_name != 'pull_request'
@@ -69,22 +72,22 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push Docker image
-        if: github.event_name != 'pull_request'
-        uses: docker/build-push-action@v5
-        with:
-          context: . 
-          file: ./Dockerfile
+        if:  github.event_name != 'pull_request'
+        uses:  docker/build-push-action@v5
+        with:  
+          context: .
+          file: ./dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          labels: ${{ steps. meta.outputs.labels }}
 
   cd:
-    name:  Continuous Deployment
+    name: Continuous Deployment
     needs: ci
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
-    steps: 
+    steps:  
       - name: Deploy to server
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -92,27 +95,27 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           password: ${{ secrets.SERVER_PASSWORD }}
           port: ${{ secrets.SERVER_PORT || 22 }}
-          script: |
+          script:  |
             # Navigate to deployment directory
-            mkdir -p ~/deployments/backend
-            cd ~/deployments/backend
+            mkdir -p ~/deployments/frontend
+            cd ~/deployments/frontend
 
             # Login to GitHub Container Registry
-            echo "${{ secrets. GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
             # Pull the latest image
-            docker pull ${{ env. REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
 
             # Stop and remove old container if exists
-            docker stop backend-app || true
-            docker rm backend-app || true
+            docker stop frontend-app || true
+            docker rm frontend-app || true
 
             # Run new container
             docker run -d \
-              --name backend-app \
+              --name frontend-app \
               --restart unless-stopped \
-              -p 8000:8000 \
-              ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}: latest
+              -p 4000:4000 \
+              ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
 
             # Clean up unused images
             docker image prune -f
