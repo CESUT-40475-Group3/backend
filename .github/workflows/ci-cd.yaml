@@ -1,9 +1,9 @@
 name: CI/CD Pipeline
 
 on:
-  push: 
-    branches: [ main, develop ]
-  pull_request:
+  push:  
+    branches:  [ main, develop ]
+  pull_request:  
     branches: [ main, develop ]
 
 env:
@@ -11,30 +11,29 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  ci: 
+  ci:  
     name: Continuous Integration
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
 
-    steps:
+    steps:  
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name:  Setup Python
+      - name:  Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
 
-      - name: Install uv
-        run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/. cargo/bin" >> $GITHUB_PATH
-
       - name: Install dependencies
-        run: |
-          uv pip install --system -r pyproject.toml
+        run: uv pip install --system -e .
 
       - name: Run Django tests
         run: |
@@ -58,7 +57,7 @@ jobs:
       - name: Extract metadata for Docker
         id: meta
         uses: docker/metadata-action@v5
-        with:
+        with: 
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=ref,event=branch
@@ -75,33 +74,36 @@ jobs:
           context: . 
           file: ./Dockerfile
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          tags:  ${{ steps.meta.outputs. tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
   cd:
     name:  Continuous Deployment
-    needs: ci
+    needs:  ci
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github. event_name == 'push' && github.ref == 'refs/heads/main'
 
-    steps: 
+    steps:  
       - name: Deploy to server
         uses: appleboy/ssh-action@v1.2.0
         with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          password: ${{ secrets.SERVER_PASSWORD }}
-          port: ${{ secrets.SERVER_PORT || 22 }}
-          script: |
+          host: ${{ secrets. SERVER_HOST }}
+          username:  ${{ secrets.SERVER_USER }}
+          password: ${{ secrets. SERVER_PASSWORD }}
+          port:  ${{ secrets.SERVER_PORT || 22 }}
+          script:  |
             # Navigate to deployment directory
             mkdir -p ~/deployments/backend
             cd ~/deployments/backend
 
+            # Convert repository name to lowercase for Docker
+            IMAGE_NAME_LOWER=$(echo "${{ env. REGISTRY }}/${{ env.IMAGE_NAME }}" | tr '[:upper:]' '[:lower:]')
+
             # Login to GitHub Container Registry
-            echo "${{ secrets. GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
             # Pull the latest image
-            docker pull ${{ env. REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            docker pull ${IMAGE_NAME_LOWER}: latest
 
             # Stop and remove old container if exists
             docker stop backend-app || true
@@ -112,6 +114,7 @@ jobs:
               --name backend-app \
               --restart unless-stopped \
               -p 8000:8000 \
-              ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}: latest
+              ${IMAGE_NAME_LOWER}:latest
 
             # Clean up unused images
+            docker image prune -f
