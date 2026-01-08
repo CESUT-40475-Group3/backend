@@ -8,7 +8,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository.lower() }}
+  IMAGE_NAME: cesut-40475-group3/backend
 
 jobs:
   ci: 
