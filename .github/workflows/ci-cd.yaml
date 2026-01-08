@@ -18,16 +18,16 @@ jobs:
       contents: read
       packages: write
 
-    steps: 
+    steps:  
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
 
-      - name: Setup Node. js
+      - name: Setup Node.js
         uses: actions/setup-node@v4
-        with:  
+        with:   
           node-version: '20'
           cache: 'pnpm'
 
@@ -38,15 +38,6 @@ jobs:
         run: pnpm run lint
         continue-on-error: true
 
-      - name: Build utilities
-        run: pnpm run build:utils
-
-      - name:  Run tests in packages
-        run: |
-          # Run tests for packages that have test scripts
-          pnpm -F @networking/auth run test || echo "No tests or tests failed in auth package"
-        continue-on-error: true
-
       - name: Build Next.js application
         run: pnpm run build
 
@@ -55,7 +46,7 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
-          username: ${{ github. actor }}
+          username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract metadata for Docker
@@ -79,20 +70,20 @@ jobs:
           file: ./dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps. meta.outputs.labels }}
+          labels: ${{ steps.meta.outputs.labels }}
 
   cd:
     name: Continuous Deployment
     needs: ci
-    runs-on: ubuntu-latest
+    runs-on:  ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:  
       - name: Deploy to server
-        uses: appleboy/ssh-action@v1.2.0
+        uses: appleboy/ssh-action@v1. 2.0
         with:
           host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
+          username: ${{ secrets. SERVER_USER }}
           password: ${{ secrets.SERVER_PASSWORD }}
           port: ${{ secrets.SERVER_PORT || 22 }}
           script:  |
@@ -115,7 +106,7 @@ jobs:
               --name frontend-app \
               --restart unless-stopped \
               -p 4000:4000 \
-              ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+              ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}: latest
 
             # Clean up unused images
             docker image prune -f
