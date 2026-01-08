@@ -112,6 +112,6 @@ jobs:
               --name backend-app \
               --restart unless-stopped \
               -p 8000:8000 \
-              ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}: latest
+              ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
 
             # Clean up unused images
